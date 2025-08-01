@@ -172,7 +172,7 @@ class ChatCmplStreamHandler:
                     yield ResponseOutputItemAddedEvent(
                         item=assistant_item,
                         output_index=state.reasoning_content_index_and_output
-                        is not None,  # fixed 0 -> 0 or 1
+                                     is not None,  # fixed 0 -> 0 or 1
                         type="response.output_item.added",
                         sequence_number=sequence_number.get_and_increment(),
                     )
@@ -180,7 +180,7 @@ class ChatCmplStreamHandler:
                         content_index=state.text_content_index_and_output[0],
                         item_id=FAKE_RESPONSES_ID,
                         output_index=state.reasoning_content_index_and_output
-                        is not None,  # fixed 0 -> 0 or 1
+                                     is not None,  # fixed 0 -> 0 or 1
                         part=ResponseOutputText(
                             text="",
                             type="output_text",
@@ -195,7 +195,7 @@ class ChatCmplStreamHandler:
                     delta=delta.content,
                     item_id=FAKE_RESPONSES_ID,
                     output_index=state.reasoning_content_index_and_output
-                    is not None,  # fixed 0 -> 0 or 1
+                                 is not None,  # fixed 0 -> 0 or 1
                     type="response.output_text.delta",
                     sequence_number=sequence_number.get_and_increment(),
                     logprobs=[],
@@ -229,7 +229,7 @@ class ChatCmplStreamHandler:
                     yield ResponseOutputItemAddedEvent(
                         item=assistant_item,
                         output_index=state.reasoning_content_index_and_output
-                        is not None,  # fixed 0 -> 0 or 1
+                                     is not None,  # fixed 0 -> 0 or 1
                         type="response.output_item.added",
                         sequence_number=sequence_number.get_and_increment(),
                     )
@@ -237,7 +237,7 @@ class ChatCmplStreamHandler:
                         content_index=state.refusal_content_index_and_output[0],
                         item_id=FAKE_RESPONSES_ID,
                         output_index=state.reasoning_content_index_and_output
-                        is not None,  # fixed 0 -> 0 or 1
+                                     is not None,  # fixed 0 -> 0 or 1
                         part=ResponseOutputText(
                             text="",
                             type="output_text",
@@ -252,7 +252,7 @@ class ChatCmplStreamHandler:
                     delta=delta.refusal,
                     item_id=FAKE_RESPONSES_ID,
                     output_index=state.reasoning_content_index_and_output
-                    is not None,  # fixed 0 -> 0 or 1
+                                 is not None,  # fixed 0 -> 0 or 1
                     type="response.refusal.delta",
                     sequence_number=sequence_number.get_and_increment(),
                 )
@@ -275,9 +275,13 @@ class ChatCmplStreamHandler:
                     tc_function = tc_delta.function
 
                     # Accumulate arguments as they come in
-                    state.function_calls[tc_delta.index].arguments += (
-                        tc_function.arguments if tc_function else ""
-                    ) or ""
+
+                    tc_function_arguments = tc_function.arguments if tc_function else ""
+
+                    if 'gemini' in response.model.lower():
+                        state.function_calls[tc_delta.index].arguments = tc_function_arguments
+                    else:
+                        state.function_calls[tc_delta.index].arguments += tc_function_arguments
 
                     # Set function name directly (it's correct from the first function call chunk)
                     if tc_function and tc_function.name:
@@ -290,9 +294,9 @@ class ChatCmplStreamHandler:
 
                     # Start streaming as soon as we have function name and call_id
                     if (
-                        not state.function_call_streaming[tc_delta.index]
-                        and function_call.name
-                        and function_call.call_id
+                            not state.function_call_streaming[tc_delta.index]
+                            and function_call.name
+                            and function_call.call_id
                     ):
                         # Calculate the output index for this function call
                         function_call_starting_index = 0
@@ -330,9 +334,9 @@ class ChatCmplStreamHandler:
 
                     # Stream arguments if we've started streaming this function call
                     if (
-                        state.function_call_streaming.get(tc_delta.index, False)
-                        and tc_function
-                        and tc_function.arguments
+                            state.function_call_streaming.get(tc_delta.index, False)
+                            and tc_function
+                            and tc_function.arguments
                     ):
                         output_index = state.function_call_output_idx[tc_delta.index]
                         yield ResponseFunctionCallArgumentsDeltaEvent(
@@ -373,7 +377,7 @@ class ChatCmplStreamHandler:
                 content_index=state.text_content_index_and_output[0],
                 item_id=FAKE_RESPONSES_ID,
                 output_index=state.reasoning_content_index_and_output
-                is not None,  # fixed 0 -> 0 or 1
+                             is not None,  # fixed 0 -> 0 or 1
                 part=state.text_content_index_and_output[1],
                 type="response.content_part.done",
                 sequence_number=sequence_number.get_and_increment(),
@@ -386,7 +390,7 @@ class ChatCmplStreamHandler:
                 content_index=state.refusal_content_index_and_output[0],
                 item_id=FAKE_RESPONSES_ID,
                 output_index=state.reasoning_content_index_and_output
-                is not None,  # fixed 0 -> 0 or 1
+                             is not None,  # fixed 0 -> 0 or 1
                 part=state.refusal_content_index_and_output[1],
                 type="response.content_part.done",
                 sequence_number=sequence_number.get_and_increment(),
@@ -484,7 +488,7 @@ class ChatCmplStreamHandler:
             yield ResponseOutputItemDoneEvent(
                 item=assistant_msg,
                 output_index=state.reasoning_content_index_and_output
-                is not None,  # fixed 0 -> 0 or 1
+                             is not None,  # fixed 0 -> 0 or 1
                 type="response.output_item.done",
                 sequence_number=sequence_number.get_and_increment(),
             )
@@ -502,7 +506,7 @@ class ChatCmplStreamHandler:
                 output_tokens_details=OutputTokensDetails(
                     reasoning_tokens=usage.completion_tokens_details.reasoning_tokens
                     if usage.completion_tokens_details
-                    and usage.completion_tokens_details.reasoning_tokens
+                       and usage.completion_tokens_details.reasoning_tokens
                     else 0
                 ),
                 input_tokens_details=InputTokensDetails(
