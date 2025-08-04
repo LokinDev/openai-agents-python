@@ -278,10 +278,11 @@ class ChatCmplStreamHandler:
 
                     tc_function_arguments = tc_function.arguments if tc_function else ""
 
-                    if 'gemini' in response.model.lower():
-                        state.function_calls[tc_delta.index].arguments = tc_function_arguments
-                    else:
-                        state.function_calls[tc_delta.index].arguments += tc_function_arguments
+                    if tc_function_arguments:
+                        if 'gemini' in response.model.lower():
+                            state.function_calls[tc_delta.index].arguments = tc_function_arguments
+                        else:
+                            state.function_calls[tc_delta.index].arguments += tc_function_arguments
 
                     # Set function name directly (it's correct from the first function call chunk)
                     if tc_function and tc_function.name:
