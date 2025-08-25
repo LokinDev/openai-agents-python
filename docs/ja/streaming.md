@@ -4,15 +4,15 @@ search:
 ---
 # ストリーミング
 
-Streaming を使用すると、エージェント の実行が進行するにつれて送られてくる更新を購読できます。これはエンドユーザー に進捗更新や部分的な応答を表示する際に役立ちます。
+ストリーミング を使用すると、エージェント の実行の進行に合わせて更新を購読できます。これはエンドユーザーに進捗更新や部分的な応答を表示するのに有用です。
 
-ストリーミングを行うには、[`Runner.run_streamed()`][agents.run.Runner.run_streamed] を呼び出します。これにより [`RunResultStreaming`][agents.result.RunResultStreaming] が返されます。`result.stream_events()` を呼び出すと、下記で説明する [`StreamEvent`][agents.stream_events.StreamEvent] オブジェクトの非同期ストリームを受け取れます。
+ストリーム配信を行うには、[`Runner.run_streamed()`][agents.run.Runner.run_streamed] を呼び出します。これは [`RunResultStreaming`][agents.result.RunResultStreaming] を返します。`result.stream_events()` を呼ぶと、以下で説明する [`StreamEvent`][agents.stream_events.StreamEvent] オブジェクトの async ストリームが得られます。
 
-## raw response イベント
+## raw レスポンスイベント
 
-[`RawResponsesStreamEvent`][agents.stream_events.RawResponsesStreamEvent] は、 LLM から直接渡される raw なイベントです。OpenAI Responses API フォーマットであり、各イベントには `response.created` や `response.output_text.delta` などの type と data が含まれます。生成されたメッセージを即座にユーザー にストリーム配信したい場合に便利です。
+[`RawResponsesStreamEvent`][agents.stream_events.RawResponsesStreamEvent] は、LLM から直接渡される raw なイベントです。これは OpenAI Responses API 形式であり、各イベントには種類（`response.created`、`response.output_text.delta` など）とデータがあります。生成され次第、応答メッセージを ユーザー にストリーミングしたい場合に便利です。
 
-例えば、以下のコードは LLM が生成したテキストをトークン単位で出力します。
+たとえば、次の例では LLM が生成したテキストをトークンごとに出力します。
 
 ```python
 import asyncio
@@ -35,11 +35,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Run item イベントとエージェント イベント
+## 実行アイテムイベントと エージェント のイベント
 
-[`RunItemStreamEvent`][agents.stream_events.RunItemStreamEvent] は、より高レベルのイベントであり、アイテムが完全に生成されたときに通知します。これにより、トークン単位ではなく「メッセージが生成された」「ツールが実行された」といったレベルで進捗をプッシュできます。同様に、[`AgentUpdatedStreamEvent`][agents.stream_events.AgentUpdatedStreamEvent] は、ハンドオフ の結果などで現在のエージェント が変更されたときに更新を提供します。
+[`RunItemStreamEvent`][agents.stream_events.RunItemStreamEvent] は、より高レベルのイベントです。アイテムが完全に生成されたタイミングを知らせます。これにより、各トークン単位ではなく、「メッセージが生成された」「ツールが実行された」といったレベルで進捗更新を配信できます。同様に、[`AgentUpdatedStreamEvent`][agents.stream_events.AgentUpdatedStreamEvent] は、現在の エージェント が変更されたとき（たとえば ハンドオフ の結果として）の更新を通知します。
 
-以下の例では raw イベントを無視し、ユーザー に更新のみをストリーム配信します。
+たとえば、次の例では raw イベントを無視し、ユーザー への更新のみをストリーミングします。
 
 ```python
 import asyncio
