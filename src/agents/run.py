@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, cast, get_args
 
@@ -91,6 +92,12 @@ def get_default_agent_runner() -> AgentRunner:
     return DEFAULT_AGENT_RUNNER
 
 
+def _default_trace_include_sensitive_data() -> bool:
+    """Returns the default value for trace_include_sensitive_data based on environment variable."""
+    val = os.getenv("OPENAI_AGENTS_TRACE_INCLUDE_SENSITIVE_DATA", "true")
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass
 class ModelInputData:
     """Container for the data that will be sent to the model."""
@@ -145,7 +152,9 @@ class RunConfig:
     """Whether tracing is disabled for the agent run. If disabled, we will not trace the agent run.
     """
 
-    trace_include_sensitive_data: bool = True
+    trace_include_sensitive_data: bool = field(
+        default_factory=_default_trace_include_sensitive_data
+    )
     """Whether we include potentially sensitive data (for example: inputs/outputs of tool calls or
     LLM generations) in traces. If False, we'll still create spans for these events, but the
     sensitive data will not be included.
@@ -199,6 +208,9 @@ class RunOptions(TypedDict, Generic[TContext]):
     previous_response_id: NotRequired[str | None]
     """The ID of the previous response, if any."""
 
+    conversation_id: NotRequired[str | None]
+    """The ID of the stored conversation, if any."""
+
     session: NotRequired[Session | None]
     """The session for the run."""
 
@@ -215,6 +227,7 @@ class Runner:
         hooks: RunHooks[TContext] | None = None,
         run_config: RunConfig | None = None,
         previous_response_id: str | None = None,
+        conversation_id: str | None = None,
         session: Session | None = None,
     ) -> RunResult:
         """Run a workflow starting at the given agent. The agent will run in a loop until a final
@@ -239,6 +252,13 @@ class Runner:
             run_config: Global settings for the entire agent run.
             previous_response_id: The ID of the previous response, if using OpenAI models via the
                 Responses API, this allows you to skip passing in input from the previous turn.
+            conversation_id:  The conversation ID (https://platform.openai.com/docs/guides/conversation-state?api-mode=responses).
+                If provided, the conversation will be used to read and write items.
+                Every agent will have access to the conversation history so far,
+                and it's output items will be written to the conversation.
+                We recommend only using this if you are exclusively using OpenAI models;
+                other model providers don't write to the Conversation object,
+                so you'll end up having partial conversations stored.
         Returns:
             A run result containing all the inputs, guardrail results and the output of the last
             agent. Agents may perform handoffs, so we don't know the specific type of the output.
@@ -252,6 +272,7 @@ class Runner:
             hooks=hooks,
             run_config=run_config,
             previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
             session=session,
         )
 
@@ -266,6 +287,7 @@ class Runner:
         hooks: RunHooks[TContext] | None = None,
         run_config: RunConfig | None = None,
         previous_response_id: str | None = None,
+        conversation_id: str | None = None,
         session: Session | None = None,
     ) -> RunResult:
         """Run a workflow synchronously, starting at the given agent. Note that this just wraps the
@@ -293,6 +315,7 @@ class Runner:
             run_config: Global settings for the entire agent run.
             previous_response_id: The ID of the previous response, if using OpenAI models via the
                 Responses API, this allows you to skip passing in input from the previous turn.
+            conversation_id: The ID of the stored conversation, if any.
         Returns:
             A run result containing all the inputs, guardrail results and the output of the last
             agent. Agents may perform handoffs, so we don't know the specific type of the output.
@@ -306,6 +329,7 @@ class Runner:
             hooks=hooks,
             run_config=run_config,
             previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
             session=session,
         )
 
@@ -319,6 +343,7 @@ class Runner:
         hooks: RunHooks[TContext] | None = None,
         run_config: RunConfig | None = None,
         previous_response_id: str | None = None,
+        conversation_id: str | None = None,
         session: Session | None = None,
     ) -> RunResultStreaming:
         """Run a workflow starting at the given agent in streaming mode. The returned result object
@@ -344,6 +369,7 @@ class Runner:
             run_config: Global settings for the entire agent run.
             previous_response_id: The ID of the previous response, if using OpenAI models via the
                 Responses API, this allows you to skip passing in input from the previous turn.
+            conversation_id: The ID of the stored conversation, if any.
         Returns:
             A result object that contains data about the run, as well as a method to stream events.
         """
@@ -356,6 +382,7 @@ class Runner:
             hooks=hooks,
             run_config=run_config,
             previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
             session=session,
         )
 
@@ -377,6 +404,7 @@ class AgentRunner:
         hooks = kwargs.get("hooks")
         run_config = kwargs.get("run_config")
         previous_response_id = kwargs.get("previous_response_id")
+        conversation_id = kwargs.get("conversation_id")
         session = kwargs.get("session")
         if hooks is None:
             hooks = RunHooks[Any]()
@@ -469,6 +497,7 @@ class AgentRunner:
                                 should_run_agent_start_hooks=should_run_agent_start_hooks,
                                 tool_use_tracker=tool_use_tracker,
                                 previous_response_id=previous_response_id,
+                                conversation_id=conversation_id,
                             ),
                         )
                     else:
@@ -483,6 +512,7 @@ class AgentRunner:
                             should_run_agent_start_hooks=should_run_agent_start_hooks,
                             tool_use_tracker=tool_use_tracker,
                             previous_response_id=previous_response_id,
+                            conversation_id=conversation_id,
                         )
                     should_run_agent_start_hooks = False
 
@@ -549,6 +579,7 @@ class AgentRunner:
         hooks = kwargs.get("hooks")
         run_config = kwargs.get("run_config")
         previous_response_id = kwargs.get("previous_response_id")
+        conversation_id = kwargs.get("conversation_id")
         session = kwargs.get("session")
 
         return asyncio.get_event_loop().run_until_complete(
@@ -561,6 +592,7 @@ class AgentRunner:
                 hooks=hooks,
                 run_config=run_config,
                 previous_response_id=previous_response_id,
+                conversation_id=conversation_id,
             )
         )
 
@@ -575,6 +607,7 @@ class AgentRunner:
         hooks = kwargs.get("hooks")
         run_config = kwargs.get("run_config")
         previous_response_id = kwargs.get("previous_response_id")
+        conversation_id = kwargs.get("conversation_id")
         session = kwargs.get("session")
 
         if hooks is None:
@@ -629,6 +662,7 @@ class AgentRunner:
                 context_wrapper=context_wrapper,
                 run_config=run_config,
                 previous_response_id=previous_response_id,
+                conversation_id=conversation_id,
                 session=session,
             )
         )
@@ -729,6 +763,7 @@ class AgentRunner:
         context_wrapper: RunContextWrapper[TContext],
         run_config: RunConfig,
         previous_response_id: str | None,
+        conversation_id: str | None,
         session: Session | None,
     ):
         if streamed_result.trace:
@@ -812,6 +847,7 @@ class AgentRunner:
                         tool_use_tracker,
                         all_tools,
                         previous_response_id,
+                        conversation_id,
                     )
                     should_run_agent_start_hooks = False
 
@@ -914,6 +950,7 @@ class AgentRunner:
         tool_use_tracker: AgentToolUseTracker,
         all_tools: list[Tool],
         previous_response_id: str | None,
+        conversation_id: str | None,
     ) -> SingleStepResult:
         emitted_tool_call_ids: set[str] = set()
 
@@ -957,10 +994,16 @@ class AgentRunner:
         )
 
         # Call hook just before the model is invoked, with the correct system_prompt.
-        if agent.hooks:
-            await agent.hooks.on_llm_start(
-                context_wrapper, agent, filtered.instructions, filtered.input
-            )
+        await asyncio.gather(
+            hooks.on_llm_start(context_wrapper, agent, filtered.instructions, filtered.input),
+            (
+                agent.hooks.on_llm_start(
+                    context_wrapper, agent, filtered.instructions, filtered.input
+                )
+                if agent.hooks
+                else _coro.noop_coroutine()
+            ),
+        )
 
         # 1. Stream the output events
         async for event in model.stream_response(
@@ -974,6 +1017,7 @@ class AgentRunner:
                 run_config.tracing_disabled, run_config.trace_include_sensitive_data
             ),
             previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
             prompt=prompt_config,
         ):
             if isinstance(event, ResponseCompletedEvent):
@@ -1018,8 +1062,15 @@ class AgentRunner:
             streamed_result._event_queue.put_nowait(RawResponsesStreamEvent(data=event))
 
         # Call hook just after the model response is finalized.
-        if agent.hooks and final_response is not None:
-            await agent.hooks.on_llm_end(context_wrapper, agent, final_response)
+        if final_response is not None:
+            await asyncio.gather(
+                (
+                    agent.hooks.on_llm_end(context_wrapper, agent, final_response)
+                    if agent.hooks
+                    else _coro.noop_coroutine()
+                ),
+                hooks.on_llm_end(context_wrapper, agent, final_response),
+            )
 
         # 2. At this point, the streaming is complete for this turn of the agent loop.
         if not final_response:
@@ -1082,6 +1133,7 @@ class AgentRunner:
         should_run_agent_start_hooks: bool,
         tool_use_tracker: AgentToolUseTracker,
         previous_response_id: str | None,
+        conversation_id: str | None,
     ) -> SingleStepResult:
         # Ensure we run the hooks before anything else
         if should_run_agent_start_hooks:
@@ -1111,10 +1163,12 @@ class AgentRunner:
             output_schema,
             all_tools,
             handoffs,
+            hooks,
             context_wrapper,
             run_config,
             tool_use_tracker,
             previous_response_id,
+            conversation_id,
             prompt_config,
         )
 
@@ -1305,10 +1359,12 @@ class AgentRunner:
         output_schema: AgentOutputSchemaBase | None,
         all_tools: list[Tool],
         handoffs: list[Handoff],
+        hooks: RunHooks[TContext],
         context_wrapper: RunContextWrapper[TContext],
         run_config: RunConfig,
         tool_use_tracker: AgentToolUseTracker,
         previous_response_id: str | None,
+        conversation_id: str | None,
         prompt_config: ResponsePromptParam | None,
     ) -> ModelResponse:
         # Allow user to modify model input right before the call, if configured
@@ -1323,14 +1379,21 @@ class AgentRunner:
         model = cls._get_model(agent, run_config)
         model_settings = agent.model_settings.resolve(run_config.model_settings)
         model_settings = RunImpl.maybe_reset_tool_choice(agent, tool_use_tracker, model_settings)
-        # If the agent has hooks, we need to call them before and after the LLM call
-        if agent.hooks:
-            await agent.hooks.on_llm_start(
-                context_wrapper,
-                agent,
-                filtered.instructions,  # Use filtered instructions
-                filtered.input,  # Use filtered input
-            )
+
+        # If we have run hooks, or if the agent has hooks, we need to call them before the LLM call
+        await asyncio.gather(
+            hooks.on_llm_start(context_wrapper, agent, filtered.instructions, filtered.input),
+            (
+                agent.hooks.on_llm_start(
+                    context_wrapper,
+                    agent,
+                    filtered.instructions,  # Use filtered instructions
+                    filtered.input,  # Use filtered input
+                )
+                if agent.hooks
+                else _coro.noop_coroutine()
+            ),
+        )
 
         new_response = await model.get_response(
             system_instructions=filtered.instructions,
@@ -1343,13 +1406,21 @@ class AgentRunner:
                 run_config.tracing_disabled, run_config.trace_include_sensitive_data
             ),
             previous_response_id=previous_response_id,
+            conversation_id=conversation_id,
             prompt=prompt_config,
         )
-        # If the agent has hooks, we need to call them after the LLM call
-        if agent.hooks:
-            await agent.hooks.on_llm_end(context_wrapper, agent, new_response)
 
         context_wrapper.usage.add(new_response.usage)
+
+        # If we have run hooks, or if the agent has hooks, we need to call them after the LLM call
+        await asyncio.gather(
+            (
+                agent.hooks.on_llm_end(context_wrapper, agent, new_response)
+                if agent.hooks
+                else _coro.noop_coroutine()
+            ),
+            hooks.on_llm_end(context_wrapper, agent, new_response),
+        )
 
         return new_response
 
@@ -1464,4 +1535,3 @@ def _copy_str_or_list(input: str | list[TResponseInputItem]) -> str | list[TResp
     if isinstance(input, str):
         return input
     return input.copy()
-
