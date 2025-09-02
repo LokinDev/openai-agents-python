@@ -184,6 +184,8 @@ class MCPUtil:
             logger.debug(f"Invoking MCP tool {tool.name} with input {input_json}")
 
         try:
+            if server.name == 'TodayChart':
+                json_data['user'] = context.context
             result = await server.call_tool(tool.name, json_data)
         except Exception as e:
             logger.error(f"Error invoking MCP tool {tool.name}: {e}")
