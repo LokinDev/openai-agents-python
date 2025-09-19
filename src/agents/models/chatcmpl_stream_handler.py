@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
@@ -76,6 +77,7 @@ class SequenceNumber:
         self._sequence_number += 1
         return num
 
+logger = logging.getLogger("ChatCmplStreamHandler")
 
 class ChatCmplStreamHandler:
     @classmethod
@@ -88,6 +90,7 @@ class ChatCmplStreamHandler:
         state = StreamingState()
         sequence_number = SequenceNumber()
         async for chunk in stream:
+            logger.debug(f"Received chunk: {chunk}")
             if not state.started:
                 state.started = True
                 yield ResponseCreatedEvent(
