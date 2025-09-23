@@ -255,6 +255,21 @@ class OpenAIChatCompletionsModel(Model):
 
         converted_tools = [Converter.tool_to_openai(tool) for tool in tools] if tools else []
 
+        # 是否 include Google Search tool
+        if model_settings.extra_args and "tools" in model_settings.extra_args:
+            if isinstance(model_settings.extra_args["tools"], list):
+                for tool in model_settings.extra_args["tools"]:
+                    if "googleSearch" in tool:
+                        converted_tools.append({"googleSearch": {}})
+
+            else:
+                logger.warning(
+                    "ModelSettings.extra_args['tools'] should be a list of tools, "
+                    "but got: {}".format(model_settings.extra_args["tools"])
+                )
+
+            model_settings.extra_args.pop("tools", None)
+
         for handoff in handoffs:
             converted_tools.append(Converter.convert_handoff_tool(handoff))
 
