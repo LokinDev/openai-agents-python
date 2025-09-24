@@ -594,8 +594,9 @@ class ChatCmplStreamHandler:
 
         final_response = response.model_copy()
         final_response.output = outputs
-        final_response.usage = (
-            ResponseUsage(
+
+        if usage:
+            response_usage = ResponseUsage(
                 input_tokens=usage.prompt_tokens or 0,
                 output_tokens=usage.completion_tokens or 0,
                 total_tokens=usage.total_tokens or 0,
@@ -611,9 +612,11 @@ class ChatCmplStreamHandler:
                     else 0
                 ),
             )
-            if usage
-            else None
-        )
+
+            if hasattr(usage, "cost_details"):
+                setattr(response_usage, "cost_details", usage.cost_details)
+
+            final_response.usage = response_usage
 
         yield ResponseCompletedEvent(
             response=final_response,
